@@ -16,6 +16,7 @@ CMakeFiles/
 cmake_install.cmake
 Makefile
 CMakeLists.txt.user
+CMakeLists.txt
 
 # Ignore image files
 *.jpg
