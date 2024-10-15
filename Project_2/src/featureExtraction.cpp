@@ -7,15 +7,17 @@
 #include <cstring>
 #include <cstdlib>
 #include "matchingMethods/baselineMatching.h"
+#include "matchingMethods/histogramMatching.h"
 
 int main(int argc, char **argv) {
-    if (argc < 3) {
-        std::cerr << "Usage: " << argv[0] << " <image_directory> <output_csv_file>" << std::endl;
+    if (argc < 4) {
+        std::cerr << "Usage: " << argv[0] << " <image_directory> <output_csv_file> <distance_matrix>" << std::endl;
         return -1;
     }
 
     std::string imageDirectory = argv[1];
     std::string outputCsvFile = argv[2];
+    std::string distanceMatrix = argv[3];
 
     std::ofstream csvFile(outputCsvFile);
     if (!csvFile.is_open()) {
@@ -26,7 +28,14 @@ int main(int argc, char **argv) {
     // Iterate through all images in the directory and extract features
     for (const auto &entry : std::__fs::filesystem::directory_iterator(imageDirectory)) {
         std::string imagePath = entry.path().string();
-        extractAndSaveFeatures(imagePath, csvFile);  // Extract and save features including color info
+        
+        // Extract and save features according to the distance matrix of choice 
+        if(distanceMatrix == "baseline"){
+            extractAndSaveSSDFeatures(imagePath, csvFile);
+        } else if (distanceMatrix == "histogram"){
+            extractAndSaveHistogram(imagePath, csvFile);
+        };
+          
     }
 
     csvFile.close();
