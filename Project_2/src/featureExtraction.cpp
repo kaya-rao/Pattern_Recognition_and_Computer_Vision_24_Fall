@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include "matchingMethods/baselineMatching.h"
 #include "matchingMethods/histogramMatching.h"
+#include "matchingMethods/multiHistogramMatching.h"
 
 int main(int argc, char **argv) {
     if (argc < 4) {
@@ -34,8 +35,13 @@ int main(int argc, char **argv) {
             extractAndSaveSSDFeatures(imagePath, csvFile);
         } else if (distanceMatrix == "histogram"){
             extractAndSaveHistogram(imagePath, csvFile);
-        };
-          
+        } else if (distanceMatrix == "multihist"){
+            extractAndSaveBothHistogram(imagePath, csvFile);
+        } else {
+            std::cerr << "Error: Unsupported distance matrix '" << distanceMatrix << "'!" << std::endl;
+            csvFile.close();
+            return -1;  // Exit if invalid matrix is provided
+        }
     }
 
     csvFile.close();

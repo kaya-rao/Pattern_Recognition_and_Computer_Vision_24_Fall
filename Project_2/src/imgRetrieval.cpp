@@ -7,6 +7,8 @@
 #include <sstream>  // For handling CSV parsing
 #include "matchingMethods/baselineMatching.h"
 #include "matchingMethods/histogramMatching.h"
+#include "matchingMethods/multiHistogramMatching.h"
+
 
 // Struct to store image feature and distance
 struct ImageFeature {
@@ -28,16 +30,23 @@ int main(int argc, char **argv) {
 
     // Read target image and compute its feature vector
     cv::Mat targetImage = cv::imread(targetImagePath, cv::IMREAD_COLOR);
+    cv::Mat grayTargetImage = cv::imread(targetImagePath, cv::IMREAD_GRAYSCALE);
     if (targetImage.empty()) {
         std::cerr << "Error reading target image!" << std::endl;
         return -1;
     }
     std::vector<int> targetFeatureVector;
     cv::Mat targetHistogram;
+    cv::Mat targetMultiHistogram1;
+    cv::Mat targetMultiHistogram2;
+
     if(distanceMatrix == "baseline"){
         targetFeatureVector = extractSSDFeatureVector(targetImage);
     } else if (distanceMatrix == "histogram"){
         targetHistogram = extract2DColorHistogram(targetImage);
+    } else if (distanceMatrix == "multihist"){
+        targetMultiHistogram1 = extractMultiHistogram1(targetImage);
+        targetMultiHistogram2 = extractMultiHistogram2(grayTargetImage);    
     } /*else if (distanceMatrix == "tc"){
         std::vector<int> targetFeatureVector = extractSSDFeatureVector(targetImage);
     } else if (distanceMatrix == "dnn"){
@@ -85,6 +94,40 @@ int main(int argc, char **argv) {
                 idx++;
             }
             distance = computeHistogramIntersection(targetHistogram, histogram);
+        }  else if (distanceMatrix == "multihist"){
+            distance = 0;
+            // convert csv to histogram
+            // Create an empty histogram with the expected size
+            int BIN_NUM = 16;
+            int histSize[] = {BIN_NUM, BIN_NUM, BIN_NUM};
+            cv::Mat histogram1 = cv::Mat::zeros(3, histSize, CV_32F);  // Proper 3D histogram initialization
+
+            std::string val;
+            int idx = 0;
+            // Read each bin value
+            while (idx < 256 && std::getline(stream, val, ',')) {
+                int r = idx / BIN_NUM;
+                int c = idx % BIN_NUM;
+                histogram1.at<float>(r, c) = std::stof(val);
+                idx++;
+            }
+            // Convert CSV to histogram2 (1D)
+            int GRAY_BIN_NUM = 256;
+            cv::Mat histogram2 = cv::Mat::zeros(1, GRAY_BIN_NUM, CV_32F);  // Proper 1D grayscale histogram initialization
+
+            for (int i = 0; i < GRAY_BIN_NUM; i++) {
+                if (std::getline(stream, val, ',')) {
+                    histogram2.at<float>(0, i) = std::stof(val);
+                } else {
+                    std::cerr << "Error reading value for grayscale histogram2!" << std::endl;
+                    exit;  // Exit if there's an issue
+                }
+            }
+            // Compute histogram intersections
+            distance += computeHistogramIntersection(targetMultiHistogram1, histogram1);
+            distance += computeHistogramIntersection1D(targetMultiHistogram2, histogram2);
+            distance /= 2;
+
         } /* else if (distanceMatrix == "tc"){
             std::vector<int> targetFeatureVector = extractSSDFeatureVector(targetImage);
         } else if (distanceMatrix == "dnn"){
