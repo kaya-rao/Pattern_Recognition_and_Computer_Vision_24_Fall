@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <sstream> 
 #include <opencv2/opencv.hpp>
+#include "histogramMatching.h"
 
 
 // Extract 2D Color Histogram of the image

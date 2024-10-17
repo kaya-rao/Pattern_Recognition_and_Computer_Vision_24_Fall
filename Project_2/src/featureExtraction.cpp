@@ -9,6 +9,8 @@
 #include "matchingMethods/baselineMatching.h"
 #include "matchingMethods/histogramMatching.h"
 #include "matchingMethods/multiHistogramMatching.h"
+#include "matchingMethods/textureColor.h"
+
 
 int main(int argc, char **argv) {
     if (argc < 4) {
@@ -37,6 +39,11 @@ int main(int argc, char **argv) {
             extractAndSaveHistogram(imagePath, csvFile);
         } else if (distanceMatrix == "multihist"){
             extractAndSaveBothHistogram(imagePath, csvFile);
+        } else if (distanceMatrix == "tc"){
+            extractAndSaveColorTextureHistogram(imagePath, csvFile);
+        } else if (distanceMatrix == "dnn"){
+            std::cerr << "Feature already exist, run imageRetrival only!" << std::endl;
+            return -1;
         } else {
             std::cerr << "Error: Unsupported distance matrix '" << distanceMatrix << "'!" << std::endl;
             csvFile.close();

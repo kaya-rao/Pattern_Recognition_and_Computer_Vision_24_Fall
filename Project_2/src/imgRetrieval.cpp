@@ -8,6 +8,10 @@
 #include "matchingMethods/baselineMatching.h"
 #include "matchingMethods/histogramMatching.h"
 #include "matchingMethods/multiHistogramMatching.h"
+#include "matchingMethods/textureColor.h"
+#include "matchingMethods/deepNetworkMatching.h"
+
+
 
 
 // Struct to store image feature and distance
@@ -35,10 +39,14 @@ int main(int argc, char **argv) {
         std::cerr << "Error reading target image!" << std::endl;
         return -1;
     }
+    
     std::vector<int> targetFeatureVector;
     cv::Mat targetHistogram;
     cv::Mat targetMultiHistogram1;
     cv::Mat targetMultiHistogram2;
+    RGBHistogram targetRGBHistogram;
+    std::vector<float> targetTextureHistogram;
+    std::vector<float> targetDnnVector;
 
     if(distanceMatrix == "baseline"){
         targetFeatureVector = extractSSDFeatureVector(targetImage);
@@ -47,14 +55,33 @@ int main(int argc, char **argv) {
     } else if (distanceMatrix == "multihist"){
         targetMultiHistogram1 = extractMultiHistogram1(targetImage);
         targetMultiHistogram2 = extractMultiHistogram2(grayTargetImage);    
-    } /*else if (distanceMatrix == "tc"){
-        std::vector<int> targetFeatureVector = extractSSDFeatureVector(targetImage);
+    } else if (distanceMatrix == "tc"){
+        targetRGBHistogram = extractWholeColorHistogram(targetImage);
+        targetTextureHistogram = extractTextureHistogram(targetImage);
     } else if (distanceMatrix == "dnn"){
-        std::vector<int> targetFeatureVector = extractSSDFeatureVector(targetImage);
+        // Read feature vectors from CSV and compute SSD
+        std::ifstream csvFile(featureCsvFile);
+        std::string line;
+        std::string extractedImagePath = extractFilename(targetImagePath);
+        // Save all the features
+        while (std::getline(csvFile, line)) {
+            std::istringstream stream(line);
+            std::string imagePath;
+            // Read the image path from the CSV line
+            std::getline(stream, imagePath, ',');
+            if (extractedImagePath == imagePath) {
+                std::string value;
+                while (std::getline(stream, value, ',')) {
+                    targetDnnVector.push_back(std::stoi(value));  // Convert string to int
+                }
+                break;
+            }
+        }
+        csvFile.close();
     } else {
         std::cerr << "Error finding distance Matrix!" << std::endl;
         return -1;
-    }*/
+    }
     
 
     // Read feature vectors from CSV and compute SSD
@@ -120,7 +147,6 @@ int main(int argc, char **argv) {
                     histogram2.at<float>(0, i) = std::stof(val);
                 } else {
                     std::cerr << "Error reading value for grayscale histogram2!" << std::endl;
-                    exit;  // Exit if there's an issue
                 }
             }
             // Compute histogram intersections
@@ -128,14 +154,62 @@ int main(int argc, char **argv) {
             distance += computeHistogramIntersection1D(targetMultiHistogram2, histogram2);
             distance /= 2;
 
-        } /* else if (distanceMatrix == "tc"){
-            std::vector<int> targetFeatureVector = extractSSDFeatureVector(targetImage);
+        }  else if (distanceMatrix == "tc"){
+            // ------------- RGB Histogram ------------- // 
+            // Define the size of the bins
+            int binNum1 = 8;
+            int binSize = 256 / binNum1;
+            RGBHistogram rbgHistogram;
+            rbgHistogram.blueHist.resize(binNum1);
+            rbgHistogram.greenHist.resize(binNum1);
+            rbgHistogram.redHist.resize(binNum1);
+
+            // Extract from csv 
+            int idx = 0;
+            // Read each bin value
+            std::string value;
+            while (idx < 24) {
+                std::getline(stream, value, ',');
+                rbgHistogram.blueHist[static_cast<int>(idx / 3)] = std::stof(value);
+                idx += 1;
+
+                std::getline(stream, value, ',');
+                rbgHistogram.greenHist[static_cast<int>(idx / 3)] = std::stof(value);
+                idx += 1;
+
+                std::getline(stream, value, ',');
+                rbgHistogram.redHist[static_cast<int>(idx / 3)] = std::stof(value);
+                idx += 1;
+            }
+            double rbgHistogramDistance = computeHistogramIntersection3D(targetRGBHistogram, rbgHistogram);
+
+            // ------------- Texture Histogram ------------- // 
+            std::vector<float> textureHistogram(16, 0.0f);
+            int binNum2 = 16;
+
+            // Extract from csv 
+            // Read each bin value
+            int textureIdx = 0;
+            while (textureIdx < binNum2) {
+                std::getline(stream, value, ',');
+                textureHistogram[textureIdx] = std::stof(value);
+                textureIdx += 1;
+            }
+            double singleChannelIntersection = - computeSingleChannelIntersection(targetTextureHistogram ,textureHistogram);
+            // Equal weighted
+            distance = (rbgHistogramDistance + singleChannelIntersection) / 2;
         } else if (distanceMatrix == "dnn"){
-            std::vector<int> targetFeatureVector = extractSSDFeatureVector(targetImage);
+            std::vector<float> dnnVector;
+            // Read the feature vector values
+            std::string value;
+            while (std::getline(stream, value, ',')) {
+                dnnVector.push_back(std::stoi(value));
+            }
+            distance = computeDnnSSD(targetDnnVector, dnnVector);
         } else {
             std::cerr << "Error finding distance Matrix!" << std::endl;
             return -1;
-        }*/
+        }
         
         imageFeatures.push_back({imagePath, distance});
     }
