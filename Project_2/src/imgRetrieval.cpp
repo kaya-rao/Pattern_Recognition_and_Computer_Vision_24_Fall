@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
     cv::Mat targetHistogram;
     cv::Mat targetMultiHistogram1;
     cv::Mat targetMultiHistogram2;
-    RGBHistogram targetRGBHistogram;
+    cv::Mat targetRGBHistogram;
     std::vector<float> targetTextureHistogram;
     std::vector<float> targetDnnVector;
 
@@ -159,27 +159,27 @@ int main(int argc, char **argv) {
             // Define the size of the bins
             int binNum1 = 8;
             int binSize = 256 / binNum1;
-            RGBHistogram rbgHistogram;
-            rbgHistogram.blueHist.resize(binNum1);
-            rbgHistogram.greenHist.resize(binNum1);
-            rbgHistogram.redHist.resize(binNum1);
 
+            // Initialize the 3D histogram
+            int histSize[] = { binNum1, binNum1, binNum1 };
+            cv::Mat rbgHistogram = cv::Mat::zeros(3, histSize, CV_32F); 
+            
             // Extract from csv 
-            int idx = 0;
-            // Read each bin value
             std::string value;
-            while (idx < 24) {
-                std::getline(stream, value, ',');
-                rbgHistogram.blueHist[static_cast<int>(idx / 3)] = std::stof(value);
-                idx += 1;
 
-                std::getline(stream, value, ',');
-                rbgHistogram.greenHist[static_cast<int>(idx / 3)] = std::stof(value);
-                idx += 1;
-
-                std::getline(stream, value, ',');
-                rbgHistogram.redHist[static_cast<int>(idx / 3)] = std::stof(value);
-                idx += 1;
+            // Read each bin value into the 3D histogram
+            for (int blueBin = 0; blueBin < binNum1; blueBin++) {
+                for (int greenBin = 0; greenBin < binNum1; greenBin++) {
+                    for (int redBin = 0; redBin < binNum1; redBin++) {
+                        if (std::getline(stream, value, ',')) {
+                            rbgHistogram.at<float>(blueBin, greenBin, redBin) = std::stof(value);  // Fill the 3D histogram
+                        } else {
+                            // Error Handle
+                            std::cerr << "Error reading value for RGB histogram!" << std::endl;
+                            continue;
+                        }
+                    }
+                }
             }
             double rbgHistogramDistance = computeHistogramIntersection3D(targetRGBHistogram, rbgHistogram);
 
@@ -196,6 +196,7 @@ int main(int argc, char **argv) {
                 textureIdx += 1;
             }
             double singleChannelIntersection = - computeSingleChannelIntersection(targetTextureHistogram ,textureHistogram);
+            
             // Equal weighted
             distance = (rbgHistogramDistance + singleChannelIntersection) / 2;
         } else if (distanceMatrix == "dnn"){

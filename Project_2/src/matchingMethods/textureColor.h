@@ -8,15 +8,9 @@
 #include <sstream> 
 #include <opencv2/opencv.hpp>
 
-// A Structure to store RGBhistogram
-struct RGBHistogram {
-    std::vector<float> redHist;
-    std::vector<float> greenHist;
-    std::vector<float> blueHist;
-};
 
 // Extract whole image (3DRGB) Color Histogram of the image
-RGBHistogram extractWholeColorHistogram(cv::Mat &image);
+cv::Mat extractWholeColorHistogram(cv::Mat &image);
 
 // Extract whole image (3DRGB) Color Histogram of the image
 //void extractAndSaveWholeColorHistogram(const std::string &imagePath, std::ofstream &csvFile);
@@ -31,6 +25,6 @@ void extractAndSaveColorTextureHistogram(const std::string &imagePath, std::ofst
 double computeSingleChannelIntersection(const std::vector<float> &hist1, const std::vector<float> &hist2);
 
 // Calculate the intersection for all three channel
-double computeHistogramIntersection3D(const RGBHistogram &histogram1, const RGBHistogram &histogram2);
+double computeHistogramIntersection3D(const cv::Mat &histogram1, const cv::Mat &histogram2);
 
 #endif

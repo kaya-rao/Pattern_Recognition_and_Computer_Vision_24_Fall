@@ -71,7 +71,6 @@ void extractAndSaveBothHistogram(const std::string &imagePath, std::ofstream &cs
     csvFile << imagePath;
     
     // Write the histogram1 to the CSV file
-    // Write the histogram to the CSV file
     for (int r = 0; r < histogram1.rows; r++) {
         for (int c = 0; c < histogram1.cols; c++) {
             csvFile << "," << histogram1.at<float>(r, c);

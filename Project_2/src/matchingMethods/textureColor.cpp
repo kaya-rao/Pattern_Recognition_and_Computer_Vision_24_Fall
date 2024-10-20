@@ -9,46 +9,35 @@
 
 
 // Extract whole image (3DRGB) Color Histogram of the image
-RGBHistogram extractWholeColorHistogram(cv::Mat &image){
+cv::Mat extractWholeColorHistogram(cv::Mat &image){
 
     // Define the size of the bins
     int binNum = 8;
     int binSize = 256 / binNum;
 
-    // Define the histogram (Use 3 vectors for easier write/read with csv files)
-    // Opencv: BGR
-    RGBHistogram histogram;
-    histogram.blueHist.resize(binNum);
-    histogram.greenHist.resize(binNum);
-    histogram.redHist.resize(binNum);
+    // Create the 3D histogram
+    int histSize[] = { binNum, binNum, binNum };
+    cv::Mat histogram = cv::Mat::zeros(3, histSize, CV_32F);
 
-    std::vector<int> bHist(binNum, 0);
-    std::vector<int> gHist(binNum, 0);
-    std::vector<int> rHist(binNum, 0);
-    
+    // Opencv: BGR    
     // Go through all the pixels
     for (int row = 0; row < image.rows; row++) {
         for (int col = 0; col < image.cols; col++) {
             cv::Vec3b pixel = image.at<cv::Vec3b>(row, col);
             
-            int blueVal = pixel[0];
-            int greenVal = pixel[1];
-            int redVal = pixel[2];
+            // Get the value
+            int blueVal = pixel[0] / binSize;
+            int greenVal = pixel[1] / binSize;
+            int redVal = pixel[2] / binSize;
+
             // Update the count in histograms
-            bHist[blueVal / binSize]++;
-            gHist[greenVal / binSize]++;
-            rHist[redVal / binSize]++;
+            histogram.at<float>(blueVal, greenVal, redVal)++;
         }
     }
 
     // Normalization
     int totalPixels = image.rows * image.cols;
-    for (int i = 0; i < binNum; i++){
-        histogram.blueHist[i] = static_cast<float>(bHist[i]) / totalPixels;
-        histogram.greenHist[i] = static_cast<float>(gHist[i]) / totalPixels;
-        histogram.redHist[i] = static_cast<float>(rHist[i]) / totalPixels;
-    }
-
+    histogram /= totalPixels;
     return histogram;
 }
 
@@ -62,15 +51,20 @@ void extractAndSaveColorTextureHistogram(const std::string &imagePath, std::ofst
         return;
     }
 
+    // Write the filepath to the CSV file
+    csvFile << imagePath;
+    
     // ------------- RGB Histogram ------------- // 
-    RGBHistogram histogram1 = extractWholeColorHistogram(image);
+    cv::Mat histogram1 = extractWholeColorHistogram(image);
     int binNum1 = 8;
     // Write the data into CSV file
-    csvFile << imagePath;
-    for (int i = 0; i < binNum1; i++) {
-        csvFile << "," << histogram1.blueHist[i];
-        csvFile << "," << histogram1.greenHist[i];
-        csvFile << "," << histogram1.redHist[i];
+    for (int blueVal = 0; blueVal < binNum1; blueVal++) {
+        for (int greenVal = 0; greenVal < binNum1; greenVal++) {
+            for (int redVal = 0; redVal < binNum1; redVal++) {
+                float binValue = histogram1.at<float>(blueVal, greenVal, redVal);
+                csvFile << "," << binValue;
+            }
+        }
     }
 
     /// ------------- Texture Histogram ------------- // 
@@ -89,9 +83,9 @@ int applySobelX3x3( cv::Mat &src, cv::Mat &dst ){
     // Scales, calculates absolute values, and converts the result to 8-bit.
     // cv::convertScaleAbs(tmp, dst); is moved to vidDisplay.cpp
     // so the magnitude and embossingEffect can use CV_16SC3 format data directly
-    dst.create(src.size(), CV_16SC3);
-    cv::Mat temp;
-    temp.create(src.size(), CV_16SC3);
+    // initialize the dst Mat to zeros
+    dst = cv::Mat::zeros(src.size(), CV_16SC3);
+    cv::Mat temp = cv::Mat::zeros(src.size(), CV_16SC3);
     
     // Horizontal
     for(int r = 0; r < src.rows; r++) {
@@ -115,10 +109,11 @@ int applySobelX3x3( cv::Mat &src, cv::Mat &dst ){
 
 // Vertical(Y) 
 int applySobelY3x3( cv::Mat &src, cv::Mat &dst ){
-    //cv::Mat tmp = cv::Mat::zeros(src.size(), CV_16SC3);
-    dst.create(src.size(), CV_16SC3);
-    cv::Mat temp;
-    temp.create(src.size(), CV_16SC3);
+
+    // initialize the dst Mat to zeros
+    dst = cv::Mat::zeros(src.size(), CV_16SC3);
+    cv::Mat temp = cv::Mat::zeros(src.size(), CV_16SC3);
+
 
     // Vertical
     for (int r = 1; r < src.rows - 1; r++) {
@@ -229,13 +224,27 @@ double computeSingleChannelIntersection(const std::vector<float> &hist1, const s
 }
 
 // Calculate the intersection for all three channel
-double computeHistogramIntersection3D(const RGBHistogram &histogram1, const RGBHistogram &histogram2){
-    
-    double blueIntersection = computeSingleChannelIntersection(histogram1.blueHist, histogram2.blueHist);
-    double greenIntersection = computeSingleChannelIntersection(histogram1.greenHist, histogram2.greenHist);
-    double redIntersection = computeSingleChannelIntersection(histogram1.redHist, histogram2.redHist);
+double computeHistogramIntersection3D(const cv::Mat &histogram1, const cv::Mat &histogram2){
+    double intersection = 0.0;
 
-    // Normalization with even weight
-    double totalIntersection = (blueIntersection + greenIntersection + redIntersection) / 3;
-    return -totalIntersection; // Because the bigger the value, the closer it is
+    // Ensure both histograms have the same size
+    if (histogram1.size != histogram2.size) {
+        std::cerr << "Histogram size mismatch!" << std::endl;
+        return intersection;
+    }
+
+    // Traverse through each bin in the 3D histogram
+    int binNum = histogram1.size[0];  // Assuming cubic 3D histogram (e.g., 8x8x8)
+    for (int blueBin = 0; blueBin < binNum; blueBin++) {
+        for (int greenBin = 0; greenBin < binNum; greenBin++) {
+            for (int redBin = 0; redBin < binNum; redBin++) {
+                float histValue1 = histogram1.at<float>(blueBin, greenBin, redBin);
+                float histValue2 = histogram2.at<float>(blueBin, greenBin, redBin);
+                // Compute the intersection
+                intersection += std::min(histValue1, histValue2);
+            }
+        }
+    }
+    
+    return -intersection; // Because the bigger the value, the closer it is
 }
