@@ -60,21 +60,23 @@ int main(int argc, char *argv[]) {
                 }
 
                 // -------- Tesk 1: threadsholding --------- //
-                
                 // --- Pre-processing --- //
                 // 1. Convert to grayscale
                 cv::Mat grayFrame, blurredFrame;
-                cv::cvtColor(frame, grayFrame, cv::COLOR_BGR2GRAY);
+                greyscale(frame, grayFrame);
+                //cv::cvtColor(frame, grayFrame, cv::COLOR_BGR2GRAY);
                 
                 // 2. Apply Gaussian Blur to smooth the image
-                cv::GaussianBlur(grayFrame, blurredFrame, cv::Size(5, 5), 0);
+                gaussianBlur(grayFrame, blurredFrame);
+                //cv::GaussianBlur(grayFrame, blurredFrame, cv::Size(5, 5), 0);
                 
                 // 3. Dynamically set threshold using k-means algorithm
                 int thresholdValue = kmeansThreshold(blurredFrame);
                 
                 // --- Apply the threshold --- //
-                cv::threshold(blurredFrame, threadsholdedFrame, thresholdValue, 255, cv::THRESH_BINARY);
-                cv::bitwise_not(threadsholdedFrame, threadsholdedFrame);
+                threadshold(blurredFrame, threadsholdedFrame, thresholdValue);
+                //cv::threshold(blurredFrame, threadsholdedFrame, thresholdValue, 255, cv::THRESH_BINARY);
+                //cv::bitwise_not(threadsholdedFrame, threadsholdedFrame);
 
                 cv::imshow("Threadsholded Video", threadsholdedFrame);
 
@@ -129,8 +131,7 @@ int main(int argc, char *argv[]) {
                     cv::Point2d centroid(centroids.at<double>(i, 0), centroids.at<double>(i, 1));
 
                     // Check if region is central and does not touch the boundary
-                    bool isCentral = (centroid.x > width / 2 && centroid.x < morphoFrame.cols - width / 2) &&
-                                        (centroid.y > height / 2 && centroid.y < morphoFrame.rows - height / 2);
+                    bool isCentral = (centroid.x > width / 2 && centroid.x < morphoFrame.cols - width / 2) && (centroid.y > height / 2 && centroid.y < morphoFrame.rows - height / 2);
                     bool touchesBoundary = (left == 0 || top == 0 || left + width == morphoFrame.cols || top + height == morphoFrame.rows);
 
                     if (!isCentral || touchesBoundary) continue;
@@ -146,16 +147,19 @@ int main(int argc, char *argv[]) {
                             }
                         }
                     }
-
                     displayedRegions++;
+                    
+                    // -------- Tesk 4: Compute features for each major region --------- //
+                    computeAndDisplayRegionFeatures(labels, i, segmentedFrame);
+                    
                 }
 
                 // Display the result
                 cv::imshow("Region Map", segmentedFrame);
 
+                
+                
 
-                // -------- Tesk 4: Compute features for each major region --------- //
-            
                 
 
 
