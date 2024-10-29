@@ -1,6 +1,6 @@
 /*
   Yunxuan 'Kaya' Rao
-  10/27/2024
+  10/22/2024
 The header of the helper functions that's going to apply to the image/live stream
  */
 #ifndef IMG_PROCESSING
@@ -41,5 +41,22 @@ FeatureVector computeAndDisplayRegionFeatures(cv::Mat& regionMap, int regionID, 
 double euclideanDistance(const cv::Point2f& p1, const cv::Point2f& p2);
 
 void saveFeatureVector(FeatureVector, const std::string& label, const std::string& filename = "features.csv");
+
+std::vector<std::pair<std::string, FeatureVector>> loadDatabase(const std::string& filename);
+
+FeatureVector computeStandardDeviations(const std::vector<std::pair<std::string, FeatureVector>>& database);
+
+double scaledEuclideanDistance(const FeatureVector& fv1, const FeatureVector& fv2, const FeatureVector& stdevs);
+
+
+std::string classifyObject(const FeatureVector& newFV, const std::vector<std::pair<std::string, FeatureVector>>& database, const FeatureVector& stdevs);
+
+void updateConfusionMatrix(const std::string& trueLabel, const std::string& predictedLabel, std::vector<std::vector<int>>& confusionMatrix, const std::map<std::string, int>& labelIndex);
+
+void printConfusionMatrix(const std::vector<std::vector<int>>& confusionMatrix, const std::map<std::string, int>& labelIndex);
+
+double cosineDistance(const FeatureVector& fv1, const FeatureVector& fv2);
+
+std::string classifyObjectUseCosin(const FeatureVector& newFV, const std::vector<std::pair<std::string, FeatureVector>>& database);
 
 #endif // Processings

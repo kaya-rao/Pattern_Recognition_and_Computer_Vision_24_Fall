@@ -1,6 +1,6 @@
 /*
   Yunxuan 'Kaya' Rao
-  10/27/2024
+  10/22/2024
 The collections of the helper functions that's going to apply to the image/live stream
  */
 #include <opencv2/opencv.hpp>
@@ -9,6 +9,13 @@ The collections of the helper functions that's going to apply to the image/live 
 #include <filesystem>
 #include <fstream>
 #include <vector>
+#include <sstream>
+#include <cmath>
+#include <limits>
+#include <string>
+#include <utility>
+#include <numeric>
+
 
 // Task 1: grayscale
 // Grayscale filter
@@ -284,7 +291,7 @@ FeatureVector computeAndDisplayRegionFeatures(cv::Mat& regionMap, int regionID, 
         for (int k = 0; k < 7; k++) {
             textStream.str(""); // Clear the stream
             textStream << "Hu Moment " << (k + 1) << ": " << std::fixed << std::setprecision(2) << huMomentsArray[k];
-            cv::putText(displayImage, textStream.str(), cv::Point(10, 30 + k * 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1);
+            cv::putText(displayImage, textStream.str(), cv::Point(10, 80 + k * 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1);
         }
     }
     // Convert array to vector
@@ -329,4 +336,242 @@ void saveFeatureVector(FeatureVector featureVector, const std::string& label, co
     } else {
         std::cerr << "Error opening file for writing." << std::endl;
     }
+}
+
+
+// Load database from csv file
+std::vector<std::pair<std::string, FeatureVector>> loadDatabase(const std::string& filename) {
+    std::vector<std::pair<std::string, FeatureVector>> database;
+    std::ifstream file(filename);
+
+    if (!file.is_open()) {
+        std::cerr << "Error opening file: " << filename << std::endl;
+        return database;
+    }
+
+    std::string line;
+    //std::getline(file, line); // No header row
+
+    while (std::getline(file, line)) {
+        std::istringstream ss(line);
+        FeatureVector fv;
+        std::string label, token;
+
+        // Read label
+        std::getline(ss, label, ',');
+        //std::cout<<label<<std::endl;
+
+        // Read centroid, majorAxis, minorAxis, percentFilled, and heightWidthRatio
+        std::getline(ss, token, ','); fv.centroid.x = std::stod(token);
+        std::getline(ss, token, ','); fv.centroid.y = std::stod(token);
+        std::getline(ss, token, ','); fv.majorAxis.x = std::stod(token);
+        std::getline(ss, token, ','); fv.majorAxis.y = std::stod(token);
+        std::getline(ss, token, ','); fv.minorAxis.x = std::stod(token);
+        std::getline(ss, token, ','); fv.minorAxis.y = std::stod(token);
+        std::getline(ss, token, ','); fv.percentFilled = std::stod(token);
+        std::getline(ss, token, ','); fv.heightWidthRatio = std::stod(token);
+
+        // Read Hu moments
+        fv.huMoments.resize(7);
+        for (int i = 0; i < 7; ++i) {
+            if (std::getline(ss, token, ',')) {
+                fv.huMoments[i] = std::stod(token);
+                //std::cout<<token<<std::endl;
+            } else {
+                std::cerr << "Error: Missing Hu Moment data in line: " << line << std::endl;
+                fv.huMoments[i] = 0.0;
+            }
+        }
+
+        // Add the label and feature vector as a pair to the database
+        database.emplace_back(label, fv);
+    }
+    file.close();
+    return database;
+}
+
+
+// Calculate standard deviations for each feature (percentFilled, heightWidthRatio, and huMoments)
+FeatureVector computeStandardDeviations(const std::vector<std::pair<std::string, FeatureVector>>& database) {
+    FeatureVector stdevs;
+    size_t numEntries = database.size();
+
+    // Initialize sums for each feature
+    double percentFilledSum = 0.0;
+    double heightWidthRatioSum = 0.0;
+    std::vector<double> huMomentsSum(7, 0.0);
+
+    // Step 1: Calculate the mean for each feature
+    for (const auto& entry : database) {
+        const FeatureVector& fv = entry.second;
+        percentFilledSum += fv.percentFilled;
+        heightWidthRatioSum += fv.heightWidthRatio;
+        
+        for (size_t i = 0; i < fv.huMoments.size(); ++i) {
+            huMomentsSum[i] += fv.huMoments[i];
+        }
+    }
+
+    // Calculate mean for each feature
+    FeatureVector means;
+    means.percentFilled = percentFilledSum / numEntries;
+    means.heightWidthRatio = heightWidthRatioSum / numEntries;
+    means.huMoments.resize(7);
+    for (size_t i = 0; i < huMomentsSum.size(); ++i) {
+        means.huMoments[i] = huMomentsSum[i] / numEntries;
+    }
+
+    // Calculate the variance 
+    double percentFilledDiff = 0.0;
+    double heightWidthRatioDiff = 0.0;
+    std::vector<double> huMomentsDiff(7, 0.0);
+
+    for (const auto& entry : database) {
+        const FeatureVector& fv = entry.second;
+        percentFilledDiff += std::pow(fv.percentFilled - means.percentFilled, 2);
+        heightWidthRatioDiff += std::pow(fv.heightWidthRatio - means.heightWidthRatio, 2);
+        
+        for (size_t i = 0; i < fv.huMoments.size(); ++i) {
+            huMomentsDiff[i] += std::pow(fv.huMoments[i] - means.huMoments[i], 2);
+        }
+    }
+
+    // Compute standard deviations 
+    stdevs.percentFilled = std::sqrt(percentFilledDiff / numEntries);
+    stdevs.heightWidthRatio = std::sqrt(heightWidthRatioDiff / numEntries);
+    stdevs.huMoments.resize(7);
+    for (size_t i = 0; i < huMomentsDiff.size(); ++i) {
+        stdevs.huMoments[i] = std::sqrt(huMomentsDiff[i] / numEntries);
+    }
+
+    // Since centroid, majorAxis, and minorAxis are not rotation invariant
+    // I'm not going to use them for matching, but it's easier to use a pre exist dataStructure
+    stdevs.centroid = {0, 0};
+    stdevs.majorAxis = {0, 0};
+    stdevs.minorAxis = {0, 0};
+
+    return stdevs;
+}
+
+// Calculate Scaled Euclidean
+// only use percentFilled, heightWidthRatio, and huMoments
+double scaledEuclideanDistance(const FeatureVector& fv1, const FeatureVector& fv2, const FeatureVector& stdevs) {
+    double distance = 0.0;
+
+    // Giving weight to the features
+    double weightPercentFilled = 3.0;
+    double weightHeightWidthRatio = 3.0;
+    // The last hu moment is not rotation invariant
+    std::vector<double> huMomentsWeights = {1.5, 1.5, 1.0, 1.0, 0.5, 0.5, 0};
+
+    // Scaled distance for percentFilled
+    if (stdevs.percentFilled != 0) {
+        distance += std::pow((fv1.percentFilled - fv2.percentFilled) / stdevs.percentFilled, 2);
+    }
+
+    // Scaled distance for heightWidthRatio
+    if (stdevs.heightWidthRatio != 0) {
+        distance += std::pow((fv1.heightWidthRatio - fv2.heightWidthRatio) / stdevs.heightWidthRatio, 2);
+    }
+
+    // Scaled distance for Hu moments
+    for (size_t i = 0; i < fv1.huMoments.size(); i++) {
+        if (stdevs.huMoments[i] != 0) {  // Only include in distance if stdev is non-zero
+            distance += std::pow((fv1.huMoments[i] - fv2.huMoments[i]) / stdevs.huMoments[i], 2);
+        }
+    }
+
+    return std::sqrt(distance);  // Return the Euclidean distance
+}
+
+// Find the nearest neighbor in the database
+std::string classifyObject(const FeatureVector& newFV, const std::vector<std::pair<std::string, FeatureVector>>& database, const FeatureVector& stdevs) {
+    double minDistance = std::numeric_limits<double>::max();
+    std::string nearestLabel;
+
+    for (const auto& entry : database) {
+        const auto& fv = entry.second;
+        double distance = scaledEuclideanDistance(newFV, fv, stdevs);
+        //std::cout << "Comparing with label: " << entry.first << ", Distance: " << distance << std::endl;
+        if (distance < minDistance) {
+            minDistance = distance;
+            nearestLabel = entry.first;
+        }
+    }
+    //std::cout << "Nearest label: " << nearestLabel << ", Min Distance: " << minDistance << std::endl;
+    return nearestLabel;
+}
+
+
+// update Confusion Matrix
+void updateConfusionMatrix(const std::string& trueLabel, const std::string& predictedLabel, std::vector<std::vector<int>>& confusionMatrix, const std::map<std::string, int>& labelIndex) {
+    auto trueIt = labelIndex.find(trueLabel);
+    auto predIt = labelIndex.find(predictedLabel);
+    if (trueIt != labelIndex.end() && predIt != labelIndex.end()) {
+        int trueIndex = trueIt->second;
+        int predictedIndex = predIt->second;
+        confusionMatrix[trueIndex][predictedIndex]++;
+    } 
+}
+
+
+// Print confusion matrixstd::vector<std::vector<int>> confusionMatrix
+void printConfusionMatrix(const std::vector<std::vector<int>>& confusionMatrix, const std::map<std::string, int>& labelIndex) {
+    std::cout << "Confusion Matrix:" << std::endl;
+
+    // Title
+    std::cout << "     ";
+    for (const auto& label : labelIndex) {
+        std::cout << label.first << " ";
+    }
+    std::cout << std::endl;
+
+    // content
+    for (size_t i = 0; i < confusionMatrix.size(); ++i) {
+        std::cout << std::left << std::setw(6) << std::next(labelIndex.begin(), i)->first << " ";
+        for (size_t j = 0; j < confusionMatrix[i].size(); ++j) {
+            std::cout << std::setw(6) << confusionMatrix[i][j];
+        }
+        std::cout << std::endl;
+    }
+}
+
+// Calculate Cosine Distance
+double cosineDistance(const FeatureVector& fv1, const FeatureVector& fv2) {
+
+    double dotProduct = 0.0;
+    double normA = 0.0;
+    double normB = 0.0;
+
+    // percentFilled & heightWidthRatio 
+    dotProduct += fv1.percentFilled * fv2.percentFilled + fv1.heightWidthRatio * fv2.heightWidthRatio;
+    normA += std::pow(fv1.percentFilled, 2) + std::pow(fv1.heightWidthRatio, 2);
+    normB += std::pow(fv2.percentFilled, 2) + std::pow(fv2.heightWidthRatio, 2);
+
+    // Hu Moments: use the first six values
+    for (size_t i = 0; i < 6; i++) {
+        dotProduct += fv1.huMoments[i] * fv2.huMoments[i];
+        normA += std::pow(fv1.huMoments[i], 2);
+        normB += std::pow(fv2.huMoments[i], 2);
+    }
+
+    double cosineSimilarity = dotProduct / (std::sqrt(normA) * std::sqrt(normB));
+    return 1.0 - cosineSimilarity; 
+}
+
+std::string classifyObjectUseCosin(const FeatureVector& newFV, const std::vector<std::pair<std::string, FeatureVector>>& database) {
+    double minDistance = std::numeric_limits<double>::max();
+    std::string nearestLabel;
+
+    for (const auto& entry : database) {
+        const auto& fv = entry.second;
+        double distance = cosineDistance(newFV, fv);
+
+        if (distance < minDistance) {
+            minDistance = distance;
+            nearestLabel = entry.first;
+        }
+    }
+
+    return nearestLabel;
 }
