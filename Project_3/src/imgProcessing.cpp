@@ -6,6 +6,9 @@ The collections of the helper functions that's going to apply to the image/live 
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include "imgProcessing.h"
+#include <filesystem>
+#include <fstream>
+#include <vector>
 
 // Task 1: grayscale
 // Grayscale filter
@@ -183,7 +186,7 @@ std::vector<cv::Vec3b> generateColorPalette() {
 
 
 // Function to compute and display features for a specified region
-void computeAndDisplayRegionFeatures(cv::Mat& regionMap, int regionID, cv::Mat& displayImage) {
+FeatureVector computeAndDisplayRegionFeatures(cv::Mat& regionMap, int regionID, cv::Mat& displayImage) {
     // Mask for the current region
     cv::Mat regionMask = (regionMap == regionID);
 
@@ -226,6 +229,11 @@ void computeAndDisplayRegionFeatures(cv::Mat& regionMap, int regionID, cv::Mat& 
     std::vector<std::vector<cv::Point>> contours;
     cv::findContours(regionMask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
+    double huMomentsArray[7];
+    float percentFilled;
+    float heightWidthRatio;
+
+
     // Check if we have any valid contours
     if (!contours.empty()) {
         // Use the largest contour for the bounding box (assuming only one region is present in the mask)
@@ -249,12 +257,12 @@ void computeAndDisplayRegionFeatures(cv::Mat& regionMap, int regionID, cv::Mat& 
         double regionArea = cv::contourArea(contours[largestContourIndex]);
 
         // Calculate percent filled (region area / bounding box area * 100)
-        float percentFilled = (boundingBoxArea > 0) ? (regionArea / boundingBoxArea * 100.0) : 0;
+        percentFilled = (boundingBoxArea > 0) ? (regionArea / boundingBoxArea * 100.0) : 0;
 
         // Calculate height/width ratio
         // Always use the longer length / shorter length to record consist results
         // Since object can be rotating
-        float heightWidthRatio = 0;
+        heightWidthRatio = 0;
         if (orientedBox.size.height > orientedBox.size.width && orientedBox.size.width > 0){
             heightWidthRatio = orientedBox.size.height / orientedBox.size.width;
         } else if (orientedBox.size.width > orientedBox.size.height && orientedBox.size.height > 0){
@@ -271,17 +279,17 @@ void computeAndDisplayRegionFeatures(cv::Mat& regionMap, int regionID, cv::Mat& 
 
         // Calculate and display Hu moments
         cv::Moments huMomentsCalc = cv::moments(contours[largestContourIndex]);
-        double huMoments[7];
-        cv::HuMoments(huMomentsCalc, huMoments);
-
+        cv::HuMoments(huMomentsCalc, huMomentsArray);
         // Display Hu moments on the image
         for (int k = 0; k < 7; k++) {
             textStream.str(""); // Clear the stream
-            textStream << "Hu Moment " << (k + 1) << ": " << std::fixed << std::setprecision(2) << huMoments[k];
+            textStream << "Hu Moment " << (k + 1) << ": " << std::fixed << std::setprecision(2) << huMomentsArray[k];
             cv::putText(displayImage, textStream.str(), cv::Point(10, 30 + k * 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1);
         }
-
     }
+    // Convert array to vector
+    std::vector<double> huMoments(huMomentsArray, huMomentsArray + 7);  
+    return {centroid, majorAxis, minorAxis, percentFilled, heightWidthRatio, huMoments};
 }
 
 
@@ -290,3 +298,35 @@ double euclideanDistance(const cv::Point2f& p1, const cv::Point2f& p2) {
     return std::sqrt(std::pow(p1.x - p2.x, 2) + std::pow(p1.y - p2.y, 2));
 }
 
+// Ask user for a label and save feature vector to file
+void saveFeatureVector(FeatureVector featureVector, const std::string& label, const std::string& filename) {
+
+    std::ofstream csvFile(filename, std::ios::app);
+    if (!csvFile.is_open()) {
+        std::cerr << "Error opening CSV file!" << std::endl;
+        return;
+    }
+
+    if (csvFile.is_open()) {
+        // write label to the file
+        csvFile << label;
+
+        // write other features
+        csvFile << "," << featureVector.centroid.x << "," << featureVector.centroid.y;
+        csvFile << "," << featureVector.majorAxis.x << "," << featureVector.majorAxis.y;
+        csvFile << "," << featureVector.minorAxis.x << "," << featureVector.minorAxis.y;
+        csvFile << "," << featureVector.percentFilled;
+        csvFile << "," << featureVector.heightWidthRatio;
+
+        // write hu moment
+        for (const double& huMoment : featureVector.huMoments) {
+            csvFile << "," << huMoment;
+        }
+
+        csvFile << "\n";
+        csvFile.close();
+        std::cout << "Feature vector saved for label: " << label << std::endl;
+    } else {
+        std::cerr << "Error opening file for writing." << std::endl;
+    }
+}
