@@ -30,14 +30,38 @@ int main(int argc, char *argv[]) {
     cv::namedWindow("Processed", 1); 
 
     // image counts incase there's are multiply images to save
-    int imgCnt = 0;
+    // int imgCnt = 0;
+    const int min_calibration_images = 5;
+    
 
     // Declare all the Frames here
     cv::Mat frame;
     cv::Mat grayscaleFrame;
+    cv::Mat validFrame;
 
     // Number of inner corners per a chessboard row and column
-    cv::Size patternSize(9, 6);
+    const int board_width = 9;
+    const int board_height = 6;
+    cv::Size patternSize(board_width, board_height);
+
+    // the 3D positions of the corners in world coordinates
+    std::vector<cv::Vec3f> point_set; 
+	// list of point_set
+    std::vector<std::vector<cv::Vec3f> > point_list; 
+    // list of 2D corner vectors
+	std::vector<std::vector<cv::Point2f> > corner_list; 
+    // Images used for calibration
+    std::vector<cv::Mat> saved_images;  
+
+    // Camera matrix
+    cv::Mat camera_matrix = (cv::Mat_<double>(3, 3) << 1, 0, capdev->get(cv::CAP_PROP_FRAME_WIDTH) / 2, 0, 1, capdev->get(cv::CAP_PROP_FRAME_HEIGHT) / 2, 0, 0, 1);
+
+    // 5 distortion parameters
+    cv::Mat distortion_coefficients = cv::Mat::zeros(5, 1, CV_64F); 
+
+    std::vector<cv::Mat> rotations, translations;
+
+
     
     // Keep the program running until 'q' input
     while (true) {
@@ -74,12 +98,38 @@ int main(int argc, char *argv[]) {
             if (!corner_set.empty()) {
                 std::cout << "First corner: (" << corner_set[0].x << ", " << corner_set[0].y << ")" << std::endl;
             }
+            
+            // -------------------------- Task 2: Select Calibration Images -------------------------- //
+            // Update the most recent corner_list and image
+            validFrame = frame;
         }
     
 
-        // -------------------------- Task 2: Select Calibration Images -------------------------- //
+        // Store  vector of the last successfully detected corners if press 's'
+        if (cv::waitKey(33) == 's'){
+            // Create a std::vector point_set that specifies the 3D positions of the corners in world coordinates
+            point_set = create3DChessboardCorners(board_height, board_width);
+            point_list.push_back(point_set);
+            saved_images.push_back(validFrame.clone());
+            corner_list.push_back(corner_set); 
+            std::cout << "Calibration image saved. Total saved: " << corner_list.size() << std::endl;
+            // print out the reprojection error if enough data has been collected
+            if (corner_list.size() >= min_calibration_images) {
+                double reprojection_error = calibrateCameraSystem(camera_matrix, distortion_coefficients, rotations, translations, frame.size(), corner_list, min_calibration_images, point_list);
+                std::cout << "Current Reprojection Error: " << reprojection_error << " pixels" << std::endl;
+            }
+
+        };
 
         // -------------------------- Task 3: Calibrate the Camera -------------------------- //
+        if (cv::waitKey(33) == 'c'){
+            double final_error = calibrateCameraSystem(camera_matrix, distortion_coefficients, rotations, translations, frame.size(), corner_list, min_calibration_images, point_list);
+            std::cout << "Final Calibration Error: " << final_error << " pixels" << std::endl;
+
+            // write intrinsic parameters to a csv file
+            writeCalibrationToCSV(camera_matrix, distortion_coefficients);
+
+        }
 
         // -------------------------- Task 4: Calculate Current Position of the Camera -------------------------- //
 
@@ -91,9 +141,9 @@ int main(int argc, char *argv[]) {
 
 
         // Display the image after processing
-        cv::namedWindow("Original Video", cv::WINDOW_NORMAL); 
-        cv::resizeWindow("Original Video", 1000, 550);
-        cv::imshow("Original Video", frame);  
+        cv::namedWindow("Chessboard Corners", cv::WINDOW_NORMAL); 
+        cv::resizeWindow("Chessboard Corners", 1000, 550);
+        cv::imshow("Chessboard Corners", frame);  
        
     
     }
