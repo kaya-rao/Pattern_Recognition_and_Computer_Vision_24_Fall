@@ -26,8 +26,8 @@ int main(int argc, char *argv[]) {
     
     
     // identifies windows
-    cv::namedWindow("Original", 1); 
-    cv::namedWindow("Processed", 1); 
+    // cv::namedWindow("Original", 1); 
+    // cv::namedWindow("Processed", 1); 
 
     // image counts incase there's are multiply images to save
     // int imgCnt = 0;
@@ -61,6 +61,8 @@ int main(int argc, char *argv[]) {
 
     std::vector<cv::Mat> rotations, translations;
 
+    std::vector<cv::Point2f> corner_set;
+
 
     
     // Keep the program running until 'q' input
@@ -79,13 +81,13 @@ int main(int argc, char *argv[]) {
         cv::cvtColor(frame, grayscaleFrame, cv::COLOR_BGR2GRAY);
 
         // Detect corners
-        std::vector<cv::Point2f> corner_set;
+        // std::vector<cv::Point2f> corner_set;
         //CALIB_CB_FAST_CHECK saves a lot of time on images
         //that do not contain any chessboard corners
         bool patternfound = cv::findChessboardCorners(grayscaleFrame, patternSize, corner_set,
                 cv::CALIB_CB_ADAPTIVE_THRESH + cv::CALIB_CB_NORMALIZE_IMAGE
                 + cv::CALIB_CB_FAST_CHECK);
-        if(patternfound){
+        if(patternfound && corner_set.size() == board_width * board_height){ // Only take the corner_set that captured all corners
             // Find the corner location
             cv::cornerSubPix(grayscaleFrame, corner_set, cv::Size(11, 11), cv::Size(-1, -1),
                 cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.1));
@@ -105,14 +107,15 @@ int main(int argc, char *argv[]) {
         }
     
 
-        // Store  vector of the last successfully detected corners if press 's'
-        if (cv::waitKey(33) == 's'){
+        // Store vector of the last successfully detected corners if press 's'
+        if (cv::waitKey(33) == 's' && corner_set.size() == board_width * board_height){
             // Create a std::vector point_set that specifies the 3D positions of the corners in world coordinates
             point_set = create3DChessboardCorners(board_height, board_width);
             point_list.push_back(point_set);
             saved_images.push_back(validFrame.clone());
             corner_list.push_back(corner_set); 
             std::cout << "Calibration image saved. Total saved: " << corner_list.size() << std::endl;
+
             // print out the reprojection error if enough data has been collected
             if (corner_list.size() >= min_calibration_images) {
                 double reprojection_error = calibrateCameraSystem(camera_matrix, distortion_coefficients, rotations, translations, frame.size(), corner_list, min_calibration_images, point_list);

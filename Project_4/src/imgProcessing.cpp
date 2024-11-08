@@ -56,7 +56,8 @@ double calibrateCameraSystem(cv::Mat &camera_matrix, cv::Mat &distortion_coeffic
 
 // Write camera matrix and distortion coefficients to a CSV file
 void writeCalibrationToCSV(const cv::Mat& camera_matrix, const cv::Mat& distortion_coefficients) {
-    std::ofstream file("camera_intrinsics.csv");
+    // wirte to camera_intrinsics.csv with continous writting
+    std::ofstream file("camera_intrinsics.csv", std::ios::app);
 
     if (file.is_open()) {
         file << "Camera Matrix," << std::endl;
