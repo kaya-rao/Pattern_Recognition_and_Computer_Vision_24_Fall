@@ -13,47 +13,59 @@ int main(int argc, char** argv) {
     // Decide the background using
     cv::VideoCapture capdev;
     bool use_video_capture = false;
+    cv::Mat frame;
 
-    // Check if a file path is provided (for an image or video)
+    // Decide if adding an object or not
+    bool add_virtual_object = false;
+    char object_type = ' ';
+
+    // Check if an input file path is provided
     if (argc > 1) {
         std::string input_path = argv[1];
-        
+        std::cout << "Input Path: " << input_path << std::endl;
+
         // Try to open the file as a video first
         capdev.open(input_path);
-        if (!capdev.isOpened()) {
+        //std::cout<<capdev.isOpened()<<std::endl;
+        if (capdev.isOpened()) {
             // If it's not a video, try loading it as an image
-            capdev.release();
+            capdev.release();  // Release any previous capture just in case
             cv::Mat static_image = cv::imread(input_path);
             if (static_image.empty()) {
                 std::cerr << "Error: Could not open input file (neither video nor image)." << std::endl;
                 return -1;
             }
             // Process the single static image
-            cv::Mat frame = static_image.clone();
-            use_video_capture = false;
-            
-            // Show the image and allow user to add virtual objects
-            processFrame(frame, camera_matrix, distortion_coefficients, false);
+            frame = static_image.clone();
+            use_video_capture = false; // Indicate we are using a static image
+        }
+
+        while (true){
+            // Show the frame and allow user to add virtual objects
+            processFrame(frame, camera_matrix, distortion_coefficients, add_virtual_object, object_type);
             cv::imshow("AR", frame);
-            while (true) {
-                char key = cv::waitKey(30);
-                if (key == 'q') break; // Exit on 'q'
-                if (key == 'c' || key == 'p') {
-                    // Re-process to add object based on key input
-                    processFrame(frame, camera_matrix, distortion_coefficients, true, key);
-                    cv::imshow("AR", frame);
-                }
+            char key = cv::waitKey(0);
+            if (key == 'q') break; // Exit on 'q'
+            if (key == 'c') {
+                // Re-process to add object based on key input
+                add_virtual_object = true;
+                object_type = 'c';
             }
-        } else {
-            // Open live camera capture if no file path is provided
-            capdev.open(0);
-            if (!capdev.isOpened()) {
-                std::cerr << "Error: Could not open the camera." << std::endl;
-                return -1;
+            if (key == 'p') {
+                // Re-process to add object based on key input
+                add_virtual_object = true;
+                object_type = 'p';
             }
-            use_video_capture = true;
+        }
+    } else {
+        // No file path provided, default to live video
+        capdev.open(0);
+        if (!capdev.isOpened()) {
+            printf("Unable to open video device\n");
+            return -1;
         }
     }
+
 
     while (use_video_capture) {
         cv::Mat frame, gray;
@@ -65,19 +77,19 @@ int main(int argc, char** argv) {
         }
 
         // Show the frame and allow user to add virtual objects
-            processFrame(frame, camera_matrix, distortion_coefficients, false);
-            cv::imshow("AR", frame);
-            char key = cv::waitKey(30);
-            if (key == 'q') break; // Exit on 'q'
-            if (key == 'c' || key == 'p') {
-                // Re-process to add object based on key input
-                processFrame(frame, camera_matrix, distortion_coefficients, true, key);
-                cv::imshow("AR", frame);
-            }
-
-        // Exit on 'q' key press
-        if (key == 'q') {
-            break;
+        processFrame(frame, camera_matrix, distortion_coefficients, add_virtual_object, object_type);
+        cv::imshow("AR", frame);
+        char key = cv::waitKey(0);
+        if (key == 'q') break; // Exit on 'q'
+        if (key == 'c') {
+            // Re-process to add object based on key input
+            add_virtual_object = true;
+            object_type = 'c';
+        }
+        if (key == 'p') {
+            // Re-process to add object based on key input
+            add_virtual_object = true;
+            object_type = 'p';
         }
     }
 

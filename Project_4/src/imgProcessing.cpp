@@ -294,40 +294,39 @@ void processFrame(cv::Mat &frame, const cv::Mat &camera_matrix, const cv::Mat &d
     std::vector<cv::Point2f> corner_set;
     bool found = cv::findChessboardCorners(gray, patternSize, corner_set,
                                             cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
-
     if (found) {
         // -------------------------- Task 4: Calculate Current Position of the Camera -------------------------- //
-            // Refine corner locations
-            cv::cornerSubPix(gray, corner_set, cv::Size(11, 11), cv::Size(-1, -1),
-                             cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.1));
+        // Refine corner locations
+        cv::cornerSubPix(gray, corner_set, cv::Size(11, 11), cv::Size(-1, -1),
+                            cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.1));
 
-            // Solve PnP to find the pose of the board relative to the camera
-            cv::Mat rotation_vector, translation_vector;
-            bool success = cv::solvePnP(object_points, corner_set, camera_matrix, distortion_coefficients,
-                                        rotation_vector, translation_vector);
+        // Solve PnP to find the pose of the board relative to the camera
+        cv::Mat rotation_vector, translation_vector;
+        bool success = cv::solvePnP(object_points, corner_set, camera_matrix, distortion_coefficients, rotation_vector, translation_vector);
 
         if (success) {
             // Display rotation and translation vectors
-                std::cout << "Rotation Vector:\n" << rotation_vector << std::endl;
-                std::cout << "Translation Vector:\n" << translation_vector << std::endl;
+            std::cout << "Rotation Vector:\n" << rotation_vector << std::endl;
+            std::cout << "Translation Vector:\n" << translation_vector << std::endl;
 
-                // Convert rotation vector to rotation matrix for display purposes
-                cv::Mat rotation_matrix;
-                cv::Rodrigues(rotation_vector, rotation_matrix);
-                std::cout << "Rotation Matrix:\n" << rotation_matrix << std::endl;
+            // Convert rotation vector to rotation matrix for display purposes
+            cv::Mat rotation_matrix;
+            cv::Rodrigues(rotation_vector, rotation_matrix);
+            std::cout << "Rotation Matrix:\n" << rotation_matrix << std::endl;
 
-                // -------------------------- Task 5: Project Outside Corners and 3D Axes -------------------------- //
-                // Draw 3D axes on the image
-                draw3DAxes(frame, camera_matrix, distortion_coefficients, rotation_vector, translation_vector);
+            // -------------------------- Task 5: Project Outside Corners and 3D Axes -------------------------- //
+            // Draw 3D axes on the image
+            draw3DAxes(frame, camera_matrix, distortion_coefficients, rotation_vector, translation_vector);
 
-                // Draw the corners
-                cv::drawChessboardCorners(frame, patternSize, cv::Mat(corner_set), found);
+            // Draw the corners
+            cv::drawChessboardCorners(frame, patternSize, cv::Mat(corner_set), found);
 
             // -------------------------- Task 6: Create a Virtual Object (if requested) -------------------------- //
             if (add_virtual_object) {
                 if (object_type == 'c') {
                     drawCube(frame, camera_matrix, distortion_coefficients, rotation_vector, translation_vector);
-                } else if (object_type == 'p') {
+                } 
+                if (object_type == 'p') {
                     drawCubeWithPyramid(frame, camera_matrix, distortion_coefficients, rotation_vector, translation_vector);
                 }
             }

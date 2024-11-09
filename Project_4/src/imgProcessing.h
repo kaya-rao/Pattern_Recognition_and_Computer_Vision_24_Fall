@@ -37,6 +37,6 @@ void drawCubeWithPyramid(cv::Mat &image, const cv::Mat &camera_matrix, const cv:
                 const cv::Mat &rotation_vector, const cv::Mat &translation_vector);
 
 // Function to process each frame (image or video) to add Augumented Reality object
-void processFrame(cv::Mat &frame, const cv::Mat &camera_matrix, const cv::Mat &distortion_coefficients, bool add_virtual_object = false, char object_type = ' ') ;
+void processFrame(cv::Mat &frame, const cv::Mat &camera_matrix, const cv::Mat &distortion_coefficients, bool add_virtual_object, char object_type) ;
 
 #endif 

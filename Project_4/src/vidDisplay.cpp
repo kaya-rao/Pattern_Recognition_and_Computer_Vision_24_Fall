@@ -10,36 +10,12 @@
 
 int main(int argc, char *argv[]) {
     cv::VideoCapture *capdev;
-    bool use_video_capture = true;
-    cv::Mat frame;
 
-    // Check if an image file path is provided
-    if (argc > 1) {
-        std::string input_path = argv[1];
-        frame = cv::imread(input_path);
-
-        // If the image could not be loaded, fall back to live video
-        if (frame.empty()) {
-            printf("Failed to open image. Switching to live video mode.\n");
-
-            // Open live video device
-            capdev = new cv::VideoCapture(0);
-            if (!capdev->isOpened()) {
-                printf("Unable to open video device\n");
-                return -1;
-            }
-
-            use_video_capture = true;
-        } else {
-            use_video_capture = false; // Set flag to use the static image
-        }
-    } else {
-        // No file path provided, default to live video
-        capdev = new cv::VideoCapture(0);
-        if (!capdev->isOpened()) {
-            printf("Unable to open video device\n");
-            return -1;
-        }
+    // open the video device
+    capdev = new cv::VideoCapture(0);
+    if( !capdev->isOpened() ) {
+        printf("Unable to open video device\n");
+        return(-1);
     }
 
     // get some properties of the image
@@ -47,13 +23,13 @@ int main(int argc, char *argv[]) {
                     (int) capdev->get(cv::CAP_PROP_FRAME_HEIGHT));
     printf("Expected size: %d %d\n", refS.width, refS.height);
     
-
     // image counts incase there's are multiply images to save
     // int imgCnt = 0;
     const int min_calibration_images = 5;
     
 
-    // Declare the Frames here
+    // Declare all the Frames here
+    cv::Mat frame;
     cv::Mat grayscaleFrame;
     cv::Mat validFrame;
 
@@ -83,12 +59,10 @@ int main(int argc, char *argv[]) {
     
     // Keep the program running until 'q' input
     while (true) {
-        if (use_video_capture) {
-            *capdev >> frame;
-            if (frame.empty()) {
-                printf("Frame is empty\n");
-                break;
-            }
+        *capdev >> frame; // get a new frame from the camera, treat as a stream
+        if( frame.empty() ) {
+            printf("frame is empty\n");
+            break;
         }
         // Quit the program if keybaord input = q
         if (cv::waitKey(33) == 'q') break;
