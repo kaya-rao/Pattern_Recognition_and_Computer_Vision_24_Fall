@@ -9,14 +9,37 @@
 #include "imgProcessing.h"
 
 int main(int argc, char *argv[]) {
-
     cv::VideoCapture *capdev;
+    bool use_video_capture = true;
+    cv::Mat frame;
 
-    // open the video device
-    capdev = new cv::VideoCapture(0);
-    if( !capdev->isOpened() ) {
-        printf("Unable to open video device\n");
-        return(-1);
+    // Check if an image file path is provided
+    if (argc > 1) {
+        std::string input_path = argv[1];
+        frame = cv::imread(input_path);
+
+        // If the image could not be loaded, fall back to live video
+        if (frame.empty()) {
+            printf("Failed to open image. Switching to live video mode.\n");
+
+            // Open live video device
+            capdev = new cv::VideoCapture(0);
+            if (!capdev->isOpened()) {
+                printf("Unable to open video device\n");
+                return -1;
+            }
+
+            use_video_capture = true;
+        } else {
+            use_video_capture = false; // Set flag to use the static image
+        }
+    } else {
+        // No file path provided, default to live video
+        capdev = new cv::VideoCapture(0);
+        if (!capdev->isOpened()) {
+            printf("Unable to open video device\n");
+            return -1;
+        }
     }
 
     // get some properties of the image
@@ -24,18 +47,13 @@ int main(int argc, char *argv[]) {
                     (int) capdev->get(cv::CAP_PROP_FRAME_HEIGHT));
     printf("Expected size: %d %d\n", refS.width, refS.height);
     
-    
-    // identifies windows
-    // cv::namedWindow("Original", 1); 
-    // cv::namedWindow("Processed", 1); 
 
     // image counts incase there's are multiply images to save
     // int imgCnt = 0;
     const int min_calibration_images = 5;
     
 
-    // Declare all the Frames here
-    cv::Mat frame;
+    // Declare the Frames here
     cv::Mat grayscaleFrame;
     cv::Mat validFrame;
 
@@ -58,19 +76,19 @@ int main(int argc, char *argv[]) {
 
     // 5 distortion parameters
     cv::Mat distortion_coefficients = cv::Mat::zeros(5, 1, CV_64F); 
-
     std::vector<cv::Mat> rotations, translations;
-
     std::vector<cv::Point2f> corner_set;
 
 
     
     // Keep the program running until 'q' input
     while (true) {
-        *capdev >> frame; // get a new frame from the camera, treat as a stream
-        if( frame.empty() ) {
-            printf("frame is empty\n");
-            break;
+        if (use_video_capture) {
+            *capdev >> frame;
+            if (frame.empty()) {
+                printf("Frame is empty\n");
+                break;
+            }
         }
         // Quit the program if keybaord input = q
         if (cv::waitKey(33) == 'q') break;
@@ -133,15 +151,6 @@ int main(int argc, char *argv[]) {
             writeCalibrationToCSV(camera_matrix, distortion_coefficients);
 
         }
-
-        // -------------------------- Task 4: Calculate Current Position of the Camera -------------------------- //
-
-        // -------------------------- Task 5: Project Outside Corners or 3D Axes -------------------------- //
-
-        // -------------------------- Task 6: Create a Virtual Object -------------------------- //
-
-        // -------------------------- Task 7: Detect Robust Features -------------------------- //
-
 
         // Display the image after processing
         cv::namedWindow("Chessboard Corners", cv::WINDOW_NORMAL); 
