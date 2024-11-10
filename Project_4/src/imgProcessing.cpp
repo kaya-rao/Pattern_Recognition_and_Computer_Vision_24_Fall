@@ -194,6 +194,7 @@ void drawCube(cv::Mat &image, const cv::Mat &camera_matrix, const cv::Mat &disto
 
     // Draw the cube edges on the image
     cv::line(image, image_points[0], image_points[1], cv::Scalar(203, 20, 255), 2); // 1 - 2
+    printf("%.1f %.1f\n", image_points[0].x, image_points[0].y);
     cv::line(image, image_points[0], image_points[2], cv::Scalar(203, 20, 255), 2); // 1 - 3
     cv::line(image, image_points[0], image_points[3], cv::Scalar(203, 20, 255), 2); // 1 - 4
     cv::line(image, image_points[1], image_points[4], cv::Scalar(203, 20, 255), 2); // 2 - 5
@@ -306,20 +307,20 @@ void processFrame(cv::Mat &frame, const cv::Mat &camera_matrix, const cv::Mat &d
 
         if (success) {
             // Display rotation and translation vectors
-            std::cout << "Rotation Vector:\n" << rotation_vector << std::endl;
+	        std::cout << "Rotation Vector:\n" << rotation_vector << std::endl;
             std::cout << "Translation Vector:\n" << translation_vector << std::endl;
 
             // Convert rotation vector to rotation matrix for display purposes
             cv::Mat rotation_matrix;
             cv::Rodrigues(rotation_vector, rotation_matrix);
-            std::cout << "Rotation Matrix:\n" << rotation_matrix << std::endl;
+            // std::cout << "Rotation Matrix:\n" << rotation_matrix << std::endl;
 
             // -------------------------- Task 5: Project Outside Corners and 3D Axes -------------------------- //
             // Draw 3D axes on the image
             draw3DAxes(frame, camera_matrix, distortion_coefficients, rotation_vector, translation_vector);
 
             // Draw the corners
-            cv::drawChessboardCorners(frame, patternSize, cv::Mat(corner_set), found);
+            //cv::drawChessboardCorners(frame, patternSize, cv::Mat(corner_set), found);
 
             // -------------------------- Task 6: Create a Virtual Object (if requested) -------------------------- //
             if (add_virtual_object) {

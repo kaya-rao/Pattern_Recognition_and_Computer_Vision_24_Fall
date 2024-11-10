@@ -113,7 +113,6 @@ int main(int argc, char *argv[]) {
                 double reprojection_error = calibrateCameraSystem(camera_matrix, distortion_coefficients, rotations, translations, frame.size(), corner_list, min_calibration_images, point_list);
                 std::cout << "Current Reprojection Error: " << reprojection_error << " pixels" << std::endl;
             }
-
         };
 
         // -------------------------- Task 3: Calibrate the Camera -------------------------- //

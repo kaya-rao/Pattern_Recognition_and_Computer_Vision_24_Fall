@@ -1,3 +1,8 @@
+/*
+  Yunxuan 'Kaya' Rao
+  11/03/2024
+  Display live stream video and apply filters on it.
+ */
 #include <opencv2/opencv.hpp>
 #include <iostream>
 
@@ -14,7 +19,7 @@ int main() {
     int blockSize = 2;
     int apertureSize = 3;
     double k = 0.04;
-    int threshold = 150;
+    int threshold = 160;
 
     while (true) {
 
