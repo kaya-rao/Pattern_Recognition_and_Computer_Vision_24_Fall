@@ -54,8 +54,6 @@ def main(argv):
     batch_size=batch_size_test, shuffle=False)
 
     # Visualize the first six images in the test set
-    #data_iter = iter(test_loader)
-    #images, labels = next(data_iter)
     examples = enumerate(test_loader)
     batch_idx, (example_data, example_targets) = next(examples)
 
