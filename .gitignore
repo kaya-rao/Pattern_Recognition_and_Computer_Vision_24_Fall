@@ -32,3 +32,6 @@ CMakeLists.txt
 
 # Ignore system-specific files (macOS)
 .DS_Store
+Project_5/__pycache__/
+Project_5/data/
+Project_5/results/
