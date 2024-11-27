@@ -16,20 +16,27 @@ import matplotlib.pyplot as plt
 # class definitions
 # ----------- Build a network model ----------- #
 class MyNetwork(nn.Module):
-    def __init__(self):
+    def __init__(self, dropout_rate=0.5, pooling_size=2, flatten_size=320):
         super(MyNetwork, self).__init__()
         # A convolution layer with 10 5x5 filters
         self.conv10 = nn.Conv2d(1, 10, kernel_size=5)
         # A max pooling layer with a 2x2 window and a ReLU function applied.
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.pool = nn.MaxPool2d(kernel_size=pooling_size, stride=2)
         
         # A second convolution layer with 20 5x5 filters
         self.conv20 = nn.Conv2d(10, 20, kernel_size=5)
         # A dropout layer with a 0.5 dropout rate (50%)
-        self.conv2_drop = nn.Dropout2d(p=0.5)
+        self.conv2_drop = nn.Dropout2d(p=dropout_rate)
+
+        # Calculate the size of the feature map dynamically
+        dummy_input = torch.zeros(1, 1, 28, 28)  # Batch size 1, 1 channel, 28x28
+        with torch.no_grad():
+            dummy_output = self.pool(torch.relu(self.conv10(dummy_input)))
+            dummy_output = self.pool(torch.relu(self.conv20(dummy_output)))
+            flatten_size = dummy_output.numel()  # Total number of elements in feature map
         
         # Fully connected Linear layer with 50 nodes
-        self.fc1 = nn.Linear(320, 50)
+        self.fc1 = nn.Linear(flatten_size, 50)
         # Final fully connected Linear layer with 10 nodes
         self.fc2 = nn.Linear(50, 10)
 
@@ -42,7 +49,8 @@ class MyNetwork(nn.Module):
         x = self.pool(torch.relu(self.conv2_drop(self.conv20(x))))
 
         # A flattening operation followed by a fully connected Linear layer with 50 nodes and a ReLU function on the output
-        x = x.view(-1, 20 * 4 * 4)
+        # x = x.view(-1, 20 * 4 * 4)
+        x = x.view(x.size(0), -1)  # Dynamically calculate flatten size
         x = torch.relu(self.fc1(x))
 
         # A final fully connected Linear layer with 10 nodes and the log_softmax function applied to the output
@@ -51,10 +59,6 @@ class MyNetwork(nn.Module):
         return x
 
 
-
-
-
-# useful functions with a comment for each function
 def train_network(model, train_loader, test_loader, n_epochs, learning_rate, momentum, log_interval):
     # Train the model
     optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
