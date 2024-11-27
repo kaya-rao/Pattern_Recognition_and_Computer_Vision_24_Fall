@@ -1,6 +1,6 @@
 # Yunxuan 'Kaya' Rao
 # Nov 25, 2024
-# Transfer Learning on Greek Letters
+# Transfer Learning on 26 Greek Letters
 
 # Import packages
 import torch

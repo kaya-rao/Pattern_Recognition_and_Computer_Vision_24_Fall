@@ -1,7 +1,6 @@
 # Yunxuan 'Kaya' Rao
-# Nov 16, 2024
-# Build and train a network to do digit recognition using the MNIST data base
-# Save the network to a file
+# Nov 26, 2024
+# Run experience on the MNIST data base
 
 # import statements
 import sys
